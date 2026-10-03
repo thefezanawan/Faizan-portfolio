@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Inbox</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 Inter,system-ui,sans-serif;background:#07090d;color:#e8edf5;padding:20px}
+.w{max-width:760px;margin:0 auto}h1{font-size:22px;margin:0 0 16px}
+input,button{font:inherit;border-radius:10px;border:1px solid #243044;background:#0e1420;color:inherit;padding:10px 14px}
+button{cursor:pointer}button.p{background:#2e8bff;border-color:#2e8bff;color:#fff}
+.row{display:flex;gap:8px;margin-bottom:16px}.row input{flex:1}
+.m{background:#0e1420;border:1px solid #1c2638;border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.m.new{border-color:#2e8bff}.h{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.s{color:#8a97ad;font-size:13px}.b{white-space:pre-wrap;margin:10px 0;word-break:break-word}
+.a{display:flex;gap:8px;flex-wrap:wrap}.a a,.a button{font-size:13px;padding:6px 10px;color:#e8edf5;text-decoration:none;border:1px solid #243044;border-radius:8px;background:#0e1420}
+#st{color:#ff9aa8;margin-bottom:12px}
+</style></head><body><div class="w">
+<h1>Messages</h1>
+<div class="row"><input id="t" type="password" placeholder="Admin token" autocomplete="current-password"><button class="p" id="go">Load</button></div>
+<div id="st"></div><div id="list"></div><div class="row" style="margin-top:8px"><button id="more" style="display:none">Load more</button></div></div>
+<script>
+const $=s=>document.querySelector(s),t=$("#t"),st=$("#st"),list=$("#list");
+t.value=sessionStorage.getItem("tk")||"";
+let shown=50;
+const api=(m,u,b)=>fetch(u||"/api/admin/messages",{method:m,headers:{Authorization:"Bearer "+t.value,"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined});
+async function load(){st.textContent="";const r=await api("GET","/api/admin/messages?limit="+shown+"&offset=0");
+ if(!r.ok){st.textContent=r.status==401?"Wrong token.":"Error loading messages.";list.textContent="";return}
+ sessionStorage.setItem("tk",t.value);const {messages,total}=await r.json();list.textContent="";
+ $("#more").style.display=total>messages.length?"inline-block":"none";
+ if(total)st.style.color="#8a97ad",st.textContent="Showing "+messages.length+" of "+total+" messages";
+ if(!messages.length){list.textContent="No messages yet.";return}
+ for(const m of messages){const d=document.createElement("div");d.className="m "+m.status;
+  const h=document.createElement("div");h.className="h";
+  const n=document.createElement("b");n.textContent=m.name+" · "+m.type;
+  const s=document.createElement("span");s.className="s";s.textContent=new Date(m.created_at).toLocaleString()+(m.email_sent?"":" · email not sent");
+  h.append(n,s);
+  const e=document.createElement("div");e.className="s";e.textContent=m.email;
+  const b=document.createElement("div");b.className="b";b.textContent=m.message;
+  const a=document.createElement("div");a.className="a";
+  const rp=document.createElement("a");rp.href="mailto:"+encodeURIComponent(m.email).replace("%40","@")+"?subject="+encodeURIComponent("Re: Project inquiry: "+m.type);rp.textContent="Reply";
+  const rd=document.createElement("button");rd.textContent=m.status=="new"?"Mark read":"Mark new";
+  rd.onclick=async()=>{await api("PATCH",null,{id:m.id,status:m.status=="new"?"read":"new"});load()};
+  const dl=document.createElement("button");dl.textContent="Delete";
+  dl.onclick=async()=>{if(confirm("Delete this message?")){await api("DELETE","/api/admin/messages?id="+m.id);load()}};
+  a.append(rp,rd,dl);d.append(h,e,b,a);list.append(d)}}
+$("#more").onclick=()=>{shown+=50;load()};$("#go").onclick=()=>{shown=50;load()};t.addEventListener("keydown",e=>e.key=="Enter"&&load());if(t.value)load();
+</script></body></html>
